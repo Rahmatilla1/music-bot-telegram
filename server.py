@@ -11,6 +11,8 @@ import time
 import requests
 import warnings
 import sys
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from dotenv import load_dotenv
@@ -551,7 +553,17 @@ def set_bot_commands():
     ])
 
 set_bot_commands()
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
 
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 if __name__ == "__main__":
     update_bot_description()  # Birinchi yangilash
     print("🚀 Bot ishga tushdi - Stats FAOL!")
