@@ -232,6 +232,7 @@ YTDLP_BASE_OPTS = {
     "quiet": True,
     "noplaylist": True,
     "socket_timeout": 30,
+    "cookies": "cookies.txt",
 
     # ❌ YouTube "bot" deb o‘ylamasin
     "http_headers": {
