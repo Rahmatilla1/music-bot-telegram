@@ -228,17 +228,31 @@ def save_music(user_id, query, url):
     )
     conn.commit()
     conn.close()
+YTDLP_BASE_OPTS = {
+    "quiet": True,
+    "noplaylist": True,
+    "socket_timeout": 30,
 
+    # ❌ YouTube "bot" deb o‘ylamasin
+    "http_headers": {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    },
+
+    # 🔥 so‘rovlarni sekinlashtiradi
+    "sleep_interval": 2,
+    "max_sleep_interval": 5,
+}
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
     opts = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "noplaylist": True,
-        "socket_timeout": 30,
-        "extract_flat": True,
-        "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-    }
+    **YTDLP_BASE_OPTS,
+    "extract_flat": True,
+}
+
     
     with yt_dlp.YoutubeDL(opts) as ydl:
         search_query = f"ytsearch10:{artist_name}"
@@ -286,17 +300,16 @@ def extract_audio(video_path):
 def download_mp3(query, timeout=60):
     """Oddiy qidiruv uchun MP3 yuklaydi"""
     opts = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "noplaylist": True,
-        "socket_timeout": timeout,
-        "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192"
-        }]
-    }
+    **YTDLP_BASE_OPTS,
+    "format": "bestaudio/best",
+    "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
+    "postprocessors": [{
+        "key": "FFmpegExtractAudio",
+        "preferredcodec": "mp3",
+        "preferredquality": "192"
+    }]
+}
+# download_mp3_from_url
     
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"ytsearch1:{query}", download=True)
@@ -317,17 +330,16 @@ def download_mp3(query, timeout=60):
 def download_mp3_from_url(yt_url, title, timeout=60):
     """Muayyan YouTube URL dan MP3 yuklaydi - TOP 10 uchun"""
     opts = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "noplaylist": True,
-        "socket_timeout": timeout,
-        "outtmpl": f"{DOWNLOAD_DIR}/{title[:50]}.%(ext)s",
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192"
-        }]
-    }
+    **YTDLP_BASE_OPTS,
+    "format": "bestaudio/best",
+    "outtmpl": f"{DOWNLOAD_DIR}/{title[:50]}.%(ext)s",
+    "postprocessors": [{
+        "key": "FFmpegExtractAudio",
+        "preferredcodec": "mp3",
+        "preferredquality": "192"
+    }]
+}
+
     
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(yt_url, download=True)
