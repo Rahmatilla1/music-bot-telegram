@@ -23,3 +23,9 @@ __pycache__/
 server.py  # Eski file (token ochiq)
 bot.db
 downloads/
+
+cookies.txt
+*.txt
+bot.db
+downloads/
+.env

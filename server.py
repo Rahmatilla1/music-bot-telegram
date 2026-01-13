@@ -14,10 +14,27 @@ import sys
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from watchdog.observers import Observer
+import base64
 from watchdog.events import FileSystemEventHandler
 from dotenv import load_dotenv
 load_dotenv()
 
+def ensure_cookies_file():
+    b64 = os.getenv("YTDLP_COOKIES_B64")
+    if not b64:
+        print("⚠️ YTDLP_COOKIES_B64 yo'q (Render Env tekshir)")
+        return
+    try:
+        with open("cookies.txt", "wb") as f:
+            f.write(base64.b64decode(b64))
+        print("✅ cookies.txt tiklandi (env dan)", os.path.getsize("cookies.txt"), "bytes")
+    except Exception as e:
+        print("❌ cookies tiklash xato:", e)
+
+
+ensure_cookies_file()
+
+# YTDLP_BASE_OPTS
 # ================== SOZLAMALAR ==================
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
@@ -232,9 +249,6 @@ YTDLP_BASE_OPTS = {
     "quiet": True,
     "noplaylist": True,
     "socket_timeout": 30,
-    "cookies": "cookies.txt",
-
-    # ❌ YouTube "bot" deb o‘ylamasin
     "http_headers": {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -242,11 +256,15 @@ YTDLP_BASE_OPTS = {
             "Chrome/120.0.0.0 Safari/537.36"
         )
     },
-
-    # 🔥 so‘rovlarni sekinlashtiradi
     "sleep_interval": 2,
     "max_sleep_interval": 5,
+    "cookiefile": "cookies.txt",
+
+    # ✅ ko‘p serverlarda yordam beradi
+    "extractor_args": {"youtube": {"player_client": ["android"]}},
 }
+
+
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
     opts = {
