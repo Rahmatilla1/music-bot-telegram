@@ -317,9 +317,9 @@ def extract_audio(video_path):
     return audio_path
 
 def download_mp3(query, timeout=60):
-    opts = {
+    # 1-urinish: audio formatlardan
+    base = {
         **YTDLP_BASE_OPTS,
-        "format": "bestaudio[ext=m4a]/bestaudio/best",
         "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
@@ -328,14 +328,26 @@ def download_mp3(query, timeout=60):
         }],
     }
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(f"ytsearch1:{query}", download=True)
-        if "entries" not in info or not info["entries"]:
-            raise Exception("Audio topilmadi")
+    try:
+        opts1 = {**base, "format": "bestaudio*/*best*[acodec!=none]/best"}
+        with yt_dlp.YoutubeDL(opts1) as ydl:
+            info = ydl.extract_info(f"ytsearch1:{query}", download=True)
 
-        entry = info["entries"][0]
-        title = entry.get("title", "audio")
-        url = entry.get("webpage_url", "")
+    except Exception as e:
+        # 2-urinish: format tanlamaymiz, "best" olib, keyin mp3ga o‘tkazamiz
+        if "Requested format is not available" in str(e):
+            opts2 = {**base, "format": "best"}
+            with yt_dlp.YoutubeDL(opts2) as ydl:
+                info = ydl.extract_info(f"ytsearch1:{query}", download=True)
+        else:
+            raise
+
+    if "entries" not in info or not info["entries"]:
+        raise Exception("Audio topilmadi")
+
+    entry = info["entries"][0]
+    title = entry.get("title", "audio")
+    url = entry.get("webpage_url", "")
 
     mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
     if not mp3_files:
