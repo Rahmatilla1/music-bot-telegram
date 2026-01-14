@@ -317,19 +317,17 @@ def extract_audio(video_path):
     return audio_path
 
 def download_mp3(query, timeout=60):
-    """Oddiy qidiruv uchun MP3 yuklaydi"""
     opts = {
-    **YTDLP_BASE_OPTS,
-    "format": "bestaudio/best",
-    "outtmpl": f"{DOWNLOAD_DIR}/%(title)s.%(ext)s",
-    "postprocessors": [{
-        "key": "FFmpegExtractAudio",
-        "preferredcodec": "mp3",
-        "preferredquality": "192"
-    }]
-}
-# download_mp3_from_url
-    
+        **YTDLP_BASE_OPTS,
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }],
+    }
+
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"ytsearch1:{query}", download=True)
         if "entries" not in info or not info["entries"]:
@@ -347,29 +345,28 @@ def download_mp3(query, timeout=60):
     return mp3, url, title
 
 def download_mp3_from_url(yt_url, title, timeout=60):
-    """Muayyan YouTube URL dan MP3 yuklaydi - TOP 10 uchun"""
-    opts = {
-    **YTDLP_BASE_OPTS,
-    "format": "bestaudio/best",
-    "outtmpl": f"{DOWNLOAD_DIR}/{title[:50]}.%(ext)s",
-    "postprocessors": [{
-        "key": "FFmpegExtractAudio",
-        "preferredcodec": "mp3",
-        "preferredquality": "192"
-    }]
-}
+    safe_title = title[:150]
 
-    
+    opts = {
+        **YTDLP_BASE_OPTS,
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        "outtmpl": f"{DOWNLOAD_DIR}/{safe_title}.%(ext)s",
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }],
+    }
+
     with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(yt_url, download=True)
-        
-        # Eng yangi MP3 faylni topish
-        mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
-        if not mp3_files:
-            raise Exception("MP3 topilmadi")
-        
-        mp3 = max(mp3_files, key=os.path.getctime)
-        return mp3, yt_url, title
+        ydl.extract_info(yt_url, download=True)
+
+    mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
+    if not mp3_files:
+        raise Exception("MP3 topilmadi")
+
+    mp3 = max(mp3_files, key=os.path.getctime)
+    return mp3, yt_url, title
 
 # ================== CALLBACKS ==================
 @bot.callback_query_handler(func=lambda c: c.data == "check_sub")
