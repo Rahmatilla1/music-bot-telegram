@@ -249,20 +249,17 @@ YTDLP_BASE_OPTS = {
     "quiet": True,
     "noplaylist": True,
     "socket_timeout": 30,
-    "http_headers": {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        )
-    },
     "sleep_interval": 2,
     "max_sleep_interval": 5,
-    "cookiefile": "cookies.txt",
-
-    # ✅ ko‘p serverlarda yordam beradi
-    "extractor_args": {"youtube": {"player_client": ["android"]}},
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    },
+    "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
 }
+
+if os.path.exists("cookies.txt"):
+    YTDLP_BASE_OPTS["cookiefile"] = "cookies.txt"
+
 
 
 # ================== MUSIC FUNCTIONS ==================
