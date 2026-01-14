@@ -244,7 +244,8 @@ def save_music(user_id, query, url):
     conn.commit()
     conn.close()
 YTDLP_BASE_OPTS = {
-    "quiet": True,
+    "quiet": False,
+    "verbose": True,
     "noplaylist": True,
     "socket_timeout": 30,
     "sleep_interval": 2,
