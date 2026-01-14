@@ -1,3 +1,8 @@
+# Tokens va secrets
+.env
+*.env
+server.py  # Eski file (token ochiq)
+
 # Database
 bot.db
 *.db
@@ -8,18 +13,5 @@ downloads/
 *.mp4
 *.webm
 
-# OS
-__pycache__/
-*.pyc
-.env
-.DS_Store
-
-# Logs
-*.log
-
-# Tokens va secrets
-.env
-*.env
-server.py  # Eski file (token ochiq)
-bot.db
-downloads/
+# yt-dlp cookies
+cookies.txt
