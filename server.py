@@ -370,12 +370,9 @@ def download_mp3(query, timeout=60):
     return mp3, url, title
 
 def download_mp3_from_url(yt_url, title, timeout=60):
-    safe_title = title[:150]
-
-    opts = {
+    base = {
         **YTDLP_BASE_OPTS,
-        "format": "bestaudio[ext=m4a]/bestaudio/best",
-        "outtmpl": f"{DOWNLOAD_DIR}/{safe_title}.%(ext)s",
+        "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
@@ -383,8 +380,18 @@ def download_mp3_from_url(yt_url, title, timeout=60):
         }],
     }
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.extract_info(yt_url, download=True)
+    try:
+        opts1 = {**base, "format": "bestaudio*/*best*[acodec!=none]/best"}
+        with yt_dlp.YoutubeDL(opts1) as ydl:
+            ydl.download([yt_url])
+
+    except Exception as e:
+        if "Requested format is not available" in str(e):
+            opts2 = {**base, "format": "best"}
+            with yt_dlp.YoutubeDL(opts2) as ydl:
+                ydl.download([yt_url])
+        else:
+            raise
 
     mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
     if not mp3_files:
@@ -392,6 +399,7 @@ def download_mp3_from_url(yt_url, title, timeout=60):
 
     mp3 = max(mp3_files, key=os.path.getctime)
     return mp3, yt_url, title
+
 
 # ================== CALLBACKS ==================
 @bot.callback_query_handler(func=lambda c: c.data == "check_sub")
@@ -417,20 +425,19 @@ def song_callback(call):
     try:
         index = int(call.data.split("_")[1])
 
-        # 🔥 SAQLANGAN QIDIRUVLARDAN OLAMIZ
         songs = user_search_cache.get(call.from_user.id)
         if not songs or index >= len(songs):
             raise Exception("Qo'shiq topilmadi")
 
         song = songs[index]
-        query = song["title"]
 
-        mp3_path, url, title = download_mp3(query)
+        # ✅ MUHIM: URL bo‘yicha yuklash
+        mp3_path, url, title = download_mp3_from_url(song["url"], song["title"])
 
         with open(mp3_path, "rb") as audio:
             bot.send_audio(call.message.chat.id, audio, title=title)
 
-        save_music(call.from_user.id, query, url)
+        save_music(call.from_user.id, title, url)
 
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Xatolik: {e}")
