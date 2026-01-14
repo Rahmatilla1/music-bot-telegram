@@ -18,7 +18,6 @@ import base64
 from watchdog.events import FileSystemEventHandler
 from dotenv import load_dotenv
 load_dotenv()
-
 def ensure_cookies_file():
     b64 = os.getenv("YTDLP_COOKIES_B64")
     if not b64:
@@ -34,7 +33,6 @@ def ensure_cookies_file():
 
 ensure_cookies_file()
 
-# YTDLP_BASE_OPTS
 # ================== SOZLAMALAR ==================
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
@@ -264,12 +262,6 @@ YTDLP_BASE_OPTS = {
 
 if os.path.exists("cookies.txt"):
     YTDLP_BASE_OPTS["cookiefile"] = "cookies.txt"
-
-
-if os.path.exists("cookies.txt"):
-    YTDLP_BASE_OPTS["cookiefile"] = "cookies.txt"
-
-
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
