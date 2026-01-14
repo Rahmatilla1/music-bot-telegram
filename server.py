@@ -251,11 +251,20 @@ YTDLP_BASE_OPTS = {
     "socket_timeout": 30,
     "sleep_interval": 2,
     "max_sleep_interval": 5,
+    "force_ipv4": True,
     "http_headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
-    "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android_music", "android", "web"]
+        }
+    },
 }
+
+if os.path.exists("cookies.txt"):
+    YTDLP_BASE_OPTS["cookiefile"] = "cookies.txt"
+
 
 if os.path.exists("cookies.txt"):
     YTDLP_BASE_OPTS["cookiefile"] = "cookies.txt"
@@ -314,10 +323,35 @@ def extract_audio(video_path):
     return audio_path
 
 def download_mp3(query, timeout=60):
-    # 1-urinish: audio formatlardan
     base = {
         **YTDLP_BASE_OPTS,
         "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
+    }
+
+    def pick_best_audio_format(info):
+        fmts = [f for f in (info.get("formats") or []) if f.get("acodec") and f.get("acodec") != "none"]
+        if not fmts:
+            return None
+        fmts.sort(key=lambda f: (f.get("abr") or 0, f.get("asr") or 0), reverse=True)
+        return fmts[0].get("format_id")
+
+    # 1) info ni olish (download=False)
+    with yt_dlp.YoutubeDL({**base, "skip_download": True}) as ydl:
+        info = ydl.extract_info(f"ytsearch1:{query}", download=False)
+        if "entries" not in info or not info["entries"]:
+            raise Exception("Audio topilmadi")
+        entry = info["entries"][0]
+        title = entry.get("title", "audio")
+        url = entry.get("webpage_url", "")
+
+        fmt_id = pick_best_audio_format(entry)
+        if not fmt_id:
+            raise Exception("YouTube format bermayapti (yt-dlp eski yoki bot-check). yt-dlp ni yangilang va cookiesni tekshiring.")
+
+    # 2) tanlangan format_id bilan download
+    opts_dl = {
+        **base,
+        "format": fmt_id,
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
@@ -325,30 +359,12 @@ def download_mp3(query, timeout=60):
         }],
     }
 
-    try:
-        opts1 = {**base, "format": "bestaudio*/*best*[acodec!=none]/best"}
-        with yt_dlp.YoutubeDL(opts1) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{query}", download=True)
-
-    except Exception as e:
-        # 2-urinish: format tanlamaymiz, "best" olib, keyin mp3ga o‘tkazamiz
-        if "Requested format is not available" in str(e):
-            opts2 = {**base, "format": "best"}
-            with yt_dlp.YoutubeDL(opts2) as ydl:
-                info = ydl.extract_info(f"ytsearch1:{query}", download=True)
-        else:
-            raise
-
-    if "entries" not in info or not info["entries"]:
-        raise Exception("Audio topilmadi")
-
-    entry = info["entries"][0]
-    title = entry.get("title", "audio")
-    url = entry.get("webpage_url", "")
+    with yt_dlp.YoutubeDL(opts_dl) as ydl:
+        ydl.download([url])
 
     mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
     if not mp3_files:
-        raise Exception("MP3 topilmadi")
+        raise Exception("MP3 topilmadi (ffmpeg yoki postprocess muammo bo‘lishi mumkin)")
 
     mp3 = max(mp3_files, key=os.path.getctime)
     return mp3, url, title
