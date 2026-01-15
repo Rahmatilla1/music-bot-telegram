@@ -16,27 +16,35 @@ from telebot import types, apihelper
 
 load_dotenv()
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COOKIES_PATH = os.path.join(BASE_DIR, "cookies.txt")
+
 def ensure_cookies_file():
     b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
     print("COOKIES ENV bor-mi:", bool(b64))
 
     if not b64:
         print("⚠️ YTDLP_COOKIES_B64 yo'q (Render Env tekshir)")
-        return
+        return None
 
     try:
         data = base64.b64decode(b64)
-        with open("cookies.txt", "wb") as f:
+        with open(COOKIES_PATH, "wb") as f:
             f.write(data)
 
-        size = os.path.getsize("cookies.txt")
+        size = os.path.getsize(COOKIES_PATH)
         print("✅ cookies.txt tiklandi. size =", size, "bytes")
 
-        if size < 50:
-            print("⚠️ cookies.txt juda kichik. Base64 xato nusxalangan bo‘lishi mumkin!")
+        # Netscape format tekshiruv
+        with open(COOKIES_PATH, "r", encoding="utf-8", errors="ignore") as f:
+            first = f.readline()
+        if "Netscape" not in first:
+            print("⚠️ cookies.txt Netscape format emasga o‘xshaydi (cookies exportni qayta qil)")
+        return COOKIES_PATH
 
     except Exception as e:
         print("❌ cookies tiklash xato:", e)
+        return None
         
 ensure_cookies_file()
 
@@ -242,6 +250,7 @@ def save_music(user_id, query, url):
     conn.close()
 
 # ================== YT-DLP OPTS (COOKIES) ==================
+# extractor_args
 YTDLP_BASE_OPTS = {
     "quiet": False,
     "verbose": True,
@@ -249,16 +258,18 @@ YTDLP_BASE_OPTS = {
     "socket_timeout": 30,
     "sleep_interval": 2,
     "max_sleep_interval": 5,
-    "force_ipv4": True,
     "http_headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
-    "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
 }
 
-# ✅ cookies.txt bor bo'lsa ulab yuboramiz
-if os.path.exists("cookies.txt") and os.path.getsize("cookies.txt") > 0:
-    YTDLP_BASE_OPTS["cookiefile"] = "cookies.txt"
+# ✅ cookie doim absolute path bilan
+if COOKIES_PATH and os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 50:
+    COOKIES_PATH = ensure_cookies_file()
+    YTDLP_BASE_OPTS["cookiefile"] = COOKIES_PATH
+    print("✅ yt-dlp cookiefile ulandi:", COOKIES_PATH)
+else:
+    print("⚠️ cookiefile ulanmagan (COOKIES_PATH yo‘q yoki kichik)")
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
