@@ -18,25 +18,32 @@ load_dotenv()
 
 def ensure_cookies_file():
     b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
-    print("COOKIES ENV bor-mi:", bool(b64))
-
+    
     if not b64:
-        print("⚠️ YTDLP_COOKIES_B64 yo'q (Render Env tekshir)")
-        return
+        print("⚠️ YTDLP_COOKIES_B64 yo'q")
+        return False
 
     try:
         data = base64.b64decode(b64)
         with open("cookies.txt", "wb") as f:
             f.write(data)
-
+        
         size = os.path.getsize("cookies.txt")
-        print("✅ cookies.txt tiklandi. size =", size, "bytes")
-
-        if size < 50:
-            print("⚠️ cookies.txt juda kichik. Base64 xato nusxalangan bo‘lishi mumkin!")
-
+        print(f"✅ Cookies yuklandi: {size} bytes")
+        
+        # Cookies to'g'ri format ekanligini tekshirish
+        with open("cookies.txt", "r") as f:
+            first_line = f.readline()
+            if "# Netscape HTTP Cookie File" in first_line:
+                print("✅ Netscape format OK")
+                return True
+            else:
+                print("❌ Cookies format xato! Extension qayta eksport qiling")
+                return False
+                
     except Exception as e:
-        print("❌ cookies tiklash xato:", e)
+        print(f"❌ Cookies xato: {e}")
+        return False
         
 ensure_cookies_file()
 
@@ -247,13 +254,23 @@ YTDLP_BASE_OPTS = {
     "verbose": True,
     "noplaylist": True,
     "socket_timeout": 30,
-    "sleep_interval": 2,
-    "max_sleep_interval": 5,
+    "sleep_interval": 3,  # +1 sekund
+    "max_sleep_interval": 10,
     "force_ipv4": True,
-    "http_headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["ios", "android"],  # Web o'rniga mobil
+            "skip": ["hls", "dash"],  # Muammo formatlar
+        }
     },
-    "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    },
 }
 
 # ✅ cookies.txt bor bo'lsa ulab yuboramiz
@@ -302,21 +319,37 @@ def extract_audio(video_path):
 def download_mp3_from_url(yt_url, title):
     opts = {
         **YTDLP_BASE_OPTS,
-        "format": "140/139/251/bestaudio",
-        "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
+        "format": "bestaudio/best[height<=480]/worst",  # Eng barqaror format
+        "outtmpl": f"{DOWNLOAD_DIR}/%(uploader)s - %(title).100s.%(ext)s",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
             "preferredquality": "192",
         }],
+        "postprocessor_args": {
+            "FFmpegExtractAudio": ["-ar", "44100"],  # Audio rate
+        },
+        "geo_bypass": True,  # Region bypass
     }
+
+    # Cookies mavjudligini yana tekshir
+    if os.path.exists("cookies.txt") and os.path.getsize("cookies.txt") > 100:
+        opts["cookiefile"] = "cookies.txt"
+        print("✅ Cookies ulandi")
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         ydl.download([yt_url])
 
     mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
     if not mp3_files:
-        raise Exception("MP3 topilmadi (YouTube format bermadi)")
+        # Fallback: video yuklab audio ajratish
+        video_opts = {**opts, "format": "best[height<=480]"}
+        with yt_dlp.YoutubeDL(video_opts) as ydl:
+            info = ydl.extract_info(yt_url, download=True)
+            video_file = ydl.prepare_filename(info)
+        
+        audio_path = extract_audio(video_file)
+        return audio_path, yt_url, title
 
     mp3 = max(mp3_files, key=os.path.getctime)
     return mp3, yt_url, title
