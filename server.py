@@ -10,6 +10,7 @@ import threading
 import time
 import warnings
 import base64
+import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from telebot import types, apihelper
@@ -365,7 +366,8 @@ def song_callback(call):
         save_music(call.from_user.id, title, url)
 
     except Exception as e:
-        bot.send_message(call.message.chat.id, f"❌ Xatolik: {e}")
+    bot.send_message(call.message.chat.id, f"❌ Xatolik: {e}")
+    print("FULL TRACE:\n", traceback.format_exc())
 
     finally:
         try:
