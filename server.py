@@ -366,9 +366,8 @@ def song_callback(call):
         save_music(call.from_user.id, title, url)
 
     except Exception as e:
-    bot.send_message(call.message.chat.id, f"❌ Xatolik: {e}")
-    print("FULL TRACE:\n", traceback.format_exc())
-
+        bot.send_message(call.message.chat.id, f"❌ Xatolik: {e}")
+        print("FULL TRACE:\n", traceback.format_exc())
     finally:
         try:
             bot.delete_message(call.message.chat.id, loading.message_id)
@@ -492,7 +491,7 @@ def handle(m):
 
     except Exception as e:
         bot.send_message(m.chat.id, f"❌ Xatolik: {e}")
-
+        print("FULL TRACE:\n", traceback.format_exc())
     finally:
         clear_downloads()
         try:
