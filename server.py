@@ -513,7 +513,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is running")
+        self.wfile.write("Bot is running")
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
