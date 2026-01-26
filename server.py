@@ -11,6 +11,7 @@ import time
 import warnings
 import base64
 import traceback
+import shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from telebot import types, apihelper
@@ -440,13 +441,39 @@ def handle(m):
         bot.send_message(m.chat.id, "❗ Avval kanalga obuna bo'ling", reply_markup=subscribe_markup())
         return
 
+    text_in = (m.text or "").strip()
+    lower = text_in.lower()
+
     loading = bot.send_message(m.chat.id, "🔍 Qidirilmoqda...")
 
     try:
-        results = search_artist_top10(m.text)
+        # ✅ 1) AVVAL Instagram link
+        if "instagram.com" in lower:
+            video_path = download_instagram(text_in)
+
+            with open(video_path, "rb") as video:
+                bot.send_video(m.chat.id, video, caption="🎥 Video + Original Musiqa")
+
+            # ✅ ffmpeg bor-yo‘qligini tekshir
+            if not shutil.which("ffmpeg"):
+                bot.send_message(
+                    m.chat.id,
+                    "❌ FFmpeg topilmadi. Windows’da FFmpeg o‘rnating va PATH ga qo‘shing.\n"
+                    "Aks holda videodan audio ajrata olmayman."
+                )
+                return
+
+            audio_path = extract_audio(video_path)
+            with open(audio_path, "rb") as audio:
+                bot.send_audio(m.chat.id, audio, title="🔊 Ovoz (Musiqasiz)")
+
+            return
+
+        # ✅ 2) Keyin Top10 (artist nomi)
+        results = search_artist_top10(text_in)
         if results:
             user_search_cache[m.from_user.id] = results
-            text = f"🎤 <b>{m.text.upper()}</b> - Top 10:\n\n"
+            text = f"🎤 <b>{text_in.upper()}</b> - Top 10:\n\n"
             kb = types.InlineKeyboardMarkup(row_width=2)
 
             buttons = []
@@ -457,36 +484,20 @@ def handle(m):
                 buttons.append(types.InlineKeyboardButton(btn_text, callback_data=f"song_{song['number'] - 1}"))
 
             kb.add(*buttons)
-            bot.delete_message(m.chat.id, loading.message_id)
             bot.send_message(m.chat.id, text, reply_markup=kb, parse_mode="HTML")
             return
 
-        if "instagram.com" in m.text:
-            video_path = download_instagram(m.text)
-
-            with open(video_path, "rb") as video:
-                bot.send_video(m.chat.id, video, caption="🎥 Video + Original Musiqa")
-
-            audio_path = extract_audio(video_path)
-            with open(audio_path, "rb") as audio:
-                bot.send_audio(m.chat.id, audio, title="🔊 Ovoz (Musiqasiz)")
-
-            bot.delete_message(m.chat.id, loading.message_id)
-            return
-
-        # Oddiy qidiruv ham ishlashi uchun: topilgan birinchi video url dan yuklaymiz
+        # ✅ 3) Oddiy qidiruv (ytsearch1)
         with yt_dlp.YoutubeDL({**YTDLP_BASE_OPTS, "extract_flat": True}) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{m.text}", download=False)
+            info = ydl.extract_info(f"ytsearch1:{text_in}", download=False)
             entry = (info.get("entries") or [None])[0]
             if not entry:
                 raise Exception("Natija topilmadi")
             yt_url = f"https://www.youtube.com/watch?v={entry.get('id')}"
 
-        mp3_path, url, title = download_mp3_from_url(yt_url, m.text)
-
+        mp3_path, url, title = download_mp3_from_url(yt_url, text_in)
         with open(mp3_path, "rb") as audio:
             bot.send_audio(m.chat.id, audio, title=title)
-
         save_music(m.from_user.id, title, url)
 
     except Exception as e:
