@@ -42,26 +42,17 @@ def ensure_cookies_file():
             first = f.readline()
         if "Netscape" not in first:
             print("⚠️ cookies.txt Netscape format emasga o‘xshaydi (cookies exportni qayta qil)")
+
         return COOKIES_PATH
 
     except Exception as e:
         print("❌ cookies tiklash xato:", e)
         return None
-        
-ensure_cookies_file()
-
-# Debug (Render log uchun)
-print("COOKIES ENV bor-mi:", bool(os.getenv("YTDLP_COOKIES_B64")))
-print("cookies.txt mavjudmi:", os.path.exists("cookies.txt"))
-if os.path.exists("cookies.txt"):
-    print("cookies.txt size:", os.path.getsize("cookies.txt"))
 
 # ================== SOZLAMALAR ==================
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
     print("❌ TOKEN topilmadi! .env faylni tekshiring:")
-    print("1. cat .env → TOKEN ko'rinadimi?")
-    print("2. pwd → server.py bilan bir joydami?")
     exit(1)
 
 print(f"✅ Token yuklandi: {TOKEN[:10]}...")
@@ -113,15 +104,6 @@ CREATE TABLE IF NOT EXISTS bot_stats (
 """)
 conn.commit()
 conn.close()
-
-# ================== ADMIN FUNCTIONS ==================
-def clear_music_db():
-    conn, c = get_db()
-    c.execute("DELETE FROM music_requests")
-    deleted_count = c.rowcount
-    conn.commit()
-    conn.close()
-    return deleted_count
 
 # ================== UTIL ==================
 def is_admin(user_id):
@@ -187,7 +169,6 @@ def get_monthly_stats():
 def update_bot_description():
     try:
         today_users, month_users, today_requests, month_requests = get_monthly_stats()
-
         month_str = f"{int(month_users):,}"
         today_str = f"{int(today_users):,}"
         req_str = f"{int(today_requests):,}"
@@ -252,7 +233,6 @@ def save_music(user_id, query, url):
     conn.close()
 
 # ================== YT-DLP OPTS (COOKIES) ==================
-# extractor_args
 YTDLP_BASE_OPTS = {
     "quiet": False,
     "verbose": True,
@@ -263,15 +243,45 @@ YTDLP_BASE_OPTS = {
     "http_headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android"]
+        }
+    },
 }
 
-# ✅ cookie doim absolute path bilan
-if COOKIES_PATH and os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 50:
-    COOKIES_PATH = ensure_cookies_file()
-    YTDLP_BASE_OPTS["cookiefile"] = COOKIES_PATH
-    print("✅ yt-dlp cookiefile ulandi:", COOKIES_PATH)
+def debug_cookies(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        print("cookies has youtube:", "youtube.com" in text)
+        print("cookies has SID:", "SID" in text)
+        print("cookies has SAPISID:", "SAPISID" in text)
+    except Exception as e:
+        print("debug_cookies error:", e)
+
+# ✅ 1) cookiesni 1 marta tiklaymiz
+cookie_path = ensure_cookies_file()
+
+# ✅ 2) cookiefile ni 1 marta ulaymiz
+if cookie_path and os.path.exists(cookie_path) and os.path.getsize(cookie_path) > 100:
+    YTDLP_BASE_OPTS["cookiefile"] = cookie_path
+    print("✅ yt-dlp cookiefile ulandi:", cookie_path)
+    debug_cookies(cookie_path)
 else:
-    print("⚠️ cookiefile ulanmagan (COOKIES_PATH yo‘q yoki kichik)")
+    print("❌ cookiefile ulanmagan yoki juda kichik:", cookie_path)
+
+# ✅ 3) Bot start bo‘lganda 1 marta test
+def quick_test():
+    test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
+    try:
+        with yt_dlp.YoutubeDL({**YTDLP_BASE_OPTS, "skip_download": True}) as ydl:
+            info = ydl.extract_info(test_url, download=False)
+            print("✅ TEST OK title:", info.get("title"))
+    except Exception as e:
+        print("❌ TEST FAIL:", e)
+
+quick_test()
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
@@ -377,6 +387,20 @@ def song_callback(call):
         clear_downloads()
 
 @bot.callback_query_handler(func=lambda c: c.data == "clear_music_db")
+def clear_music_db():
+    conn, c = get_db()
+    c.execute("SELECT COUNT(*) FROM music_requests")
+    before = c.fetchone()[0]
+
+    c.execute("DELETE FROM music_requests")
+    conn.commit()
+
+    c.execute("VACUUM")
+    conn.commit()
+    conn.close()
+
+    return int(before)
+
 def clear_music_callback(call):
     if not is_admin(call.from_user.id):
         bot.answer_callback_query(call.id, "⛔ Siz admin emassiz!", show_alert=True)
@@ -447,29 +471,21 @@ def handle(m):
     loading = bot.send_message(m.chat.id, "🔍 Qidirilmoqda...")
 
     try:
-        # ✅ 1) AVVAL Instagram link
         if "instagram.com" in lower:
             video_path = download_instagram(text_in)
 
             with open(video_path, "rb") as video:
                 bot.send_video(m.chat.id, video, caption="🎥 Video + Original Musiqa")
 
-            # ✅ ffmpeg bor-yo‘qligini tekshir
             if not shutil.which("ffmpeg"):
-                bot.send_message(
-                    m.chat.id,
-                    "❌ FFmpeg topilmadi. Windows’da FFmpeg o‘rnating va PATH ga qo‘shing.\n"
-                    "Aks holda videodan audio ajrata olmayman."
-                )
+                bot.send_message(m.chat.id, "❌ FFmpeg topilmadi.")
                 return
 
             audio_path = extract_audio(video_path)
             with open(audio_path, "rb") as audio:
                 bot.send_audio(m.chat.id, audio, title="🔊 Ovoz (Musiqasiz)")
-
             return
 
-        # ✅ 2) Keyin Top10 (artist nomi)
         results = search_artist_top10(text_in)
         if results:
             user_search_cache[m.from_user.id] = results
@@ -487,7 +503,6 @@ def handle(m):
             bot.send_message(m.chat.id, text, reply_markup=kb, parse_mode="HTML")
             return
 
-        # ✅ 3) Oddiy qidiruv (ytsearch1)
         with yt_dlp.YoutubeDL({**YTDLP_BASE_OPTS, "extract_flat": True}) as ydl:
             info = ydl.extract_info(f"ytsearch1:{text_in}", download=False)
             entry = (info.get("entries") or [None])[0]
@@ -498,7 +513,7 @@ def handle(m):
         mp3_path, url, title = download_mp3_from_url(yt_url, text_in)
         with open(mp3_path, "rb") as audio:
             bot.send_audio(m.chat.id, audio, title=title)
-        save_music(m.from_user.id, title, url)
+        save_music(m.chat.id, title, url)
 
     except Exception as e:
         bot.send_message(m.chat.id, f"❌ Xatolik: {e}")
@@ -525,7 +540,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/plain; charset=utf-8")
         self.end_headers()
-        self.wfile.write(b"Bot is running")   # ✅ bytes~
+        self.wfile.write(b"Bot is running")
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
