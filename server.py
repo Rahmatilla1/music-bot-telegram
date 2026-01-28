@@ -287,7 +287,7 @@ def quick_test():
             print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
         print("❌ TEST FAIL:", e)
-
+quick_test()
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
     opts = {**YTDLP_BASE_OPTS, "extract_flat": True}
