@@ -561,4 +561,6 @@ threading.Thread(target=run_server, daemon=True).start()
 if __name__ == "__main__":
     update_bot_description()
     print("🚀 Bot ishga tushdi - Stats FAOL!")
+    bot.remove_webhook()
+    time.sleep(1)
     bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
