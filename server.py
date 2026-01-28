@@ -535,12 +535,22 @@ def set_bot_commands():
 set_bot_commands()
 
 # ================== HEALTH SERVER (RENDER) ==================
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 class Handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Render loglarini spam qilmaslik uchun
+        return
+
     def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/plain; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(b"Bot is running")
+        if self.path in ("/", "/health"):
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"ok")
+        else:
+            self.send_response(404)
+            self.end_headers()
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
@@ -551,4 +561,4 @@ threading.Thread(target=run_server, daemon=True).start()
 if __name__ == "__main__":
     update_bot_description()
     print("🚀 Bot ishga tushdi - Stats FAOL!")
-    bot.infinity_polling()
+    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
