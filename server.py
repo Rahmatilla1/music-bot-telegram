@@ -238,8 +238,13 @@ YTDLP_BASE_OPTS = {
     "verbose": True,
     "noplaylist": True,
     "socket_timeout": 30,
+    "nocheckcertificate": True,
+    "retries": 5,
+    "fragment_retries": 5,
+    "extractor_retries": 5,
     "sleep_interval": 2,
     "max_sleep_interval": 5,
+    "concurrent_fragment_downloads": 1,
     "http_headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
