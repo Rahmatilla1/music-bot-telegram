@@ -9,4 +9,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ping render
-        run: curl -sS https://music-bot-telegram-x4ea.onrender.com/health > /dev/null
+        run: curl -sS https://music-bot-telegram-z2p0.onrender.com/health > /dev/null
