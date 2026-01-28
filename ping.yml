@@ -1,9 +1,0 @@
-name: ping-render
-on:
-  schedule:
-    - cron: "*/10 * * * *"
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: curl -sS https://SIZNING-SERVICE.onrender.com/health > /dev/null
