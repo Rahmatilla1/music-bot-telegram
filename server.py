@@ -280,13 +280,13 @@ else:
 def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
     try:
-        with yt_dlp.YoutubeDL({**YTDLP_BASE_OPTS, "skip_download": True}) as ydl:
+        opts = {**YTDLP_BASE_OPTS, "skip_download": True}
+        print("cookiefile used:", opts.get("cookiefile"))
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(test_url, download=False)
             print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
         print("❌ TEST FAIL:", e)
-
-quick_test()
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
