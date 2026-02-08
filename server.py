@@ -250,6 +250,7 @@ YTDLP_BASE_OPTS = {
     },
     "extractor_args": {
     "youtube": {
+        "player_skip": ["webpage"],   # ba'zan yordam beradi
         "player_client": ["android_music", "android"]
       }
     },
@@ -286,20 +287,30 @@ else:
 # ✅ 3) Bot start bo‘lganda 1 marta test
 def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
-    opts = {**YTDLP_BASE_OPTS, "skip_download": True}
 
-    print("proxy used:", opts.get("proxy"))
-    print("cookiefile used:", opts.get("cookiefile"))
-
+    # A) proxy bilan
+    opts_a = {**YTDLP_BASE_OPTS, "skip_download": True}
+    print("\n=== TEST A (with proxy) ===")
+    print("proxy:", opts_a.get("proxy"))
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
+        with yt_dlp.YoutubeDL(opts_a) as ydl:
             info = ydl.extract_info(test_url, download=False)
-            print("✅ TEST OK title:", info.get("title"))
+            print("OK A:", info.get("title"))
     except Exception as e:
-        print("❌ TEST FAIL:", repr(e))
-        print("FULL TRACE:\n", traceback.format_exc())
+        print("FAIL A:", repr(e))
 
-quick_test()
+    # B) proxysiz (proxy kalitini olib tashlaymiz)
+    opts_b = {**YTDLP_BASE_OPTS, "skip_download": True}
+    opts_b.pop("proxy", None)
+    print("\n=== TEST B (no proxy) ===")
+    print("proxy:", opts_b.get("proxy"))
+    try:
+        with yt_dlp.YoutubeDL(opts_b) as ydl:
+            info = ydl.extract_info(test_url, download=False)
+            print("OK B:", info.get("title"))
+    except Exception as e:
+        print("FAIL B:", repr(e))
+
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
