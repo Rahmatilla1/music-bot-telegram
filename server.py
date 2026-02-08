@@ -249,12 +249,16 @@ YTDLP_BASE_OPTS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
     "extractor_args": {
-        "youtube": {
-            "player_client": ["android"]
-        }
+    "youtube": {
+        "player_client": ["android_music", "android"]
+      }
     },
 }
+PROXY_URL = os.getenv("PROXY_URL", "").strip()
 
+if PROXY_URL:
+    YTDLP_BASE_OPTS["proxy"] = PROXY_URL
+    print("✅ yt-dlp proxy ulandi")
 def debug_cookies(path):
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
@@ -279,15 +283,21 @@ else:
 # ✅ 3) Bot start bo‘lganda 1 marta test
 def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
+    opts = {**YTDLP_BASE_OPTS, "skip_download": True}
+
+    print("proxy used:", opts.get("proxy"))
+    print("cookiefile used:", opts.get("cookiefile"))
+
     try:
-        opts = {**YTDLP_BASE_OPTS, "skip_download": True}
-        print("cookiefile used:", opts.get("cookiefile"))
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(test_url, download=False)
             print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
-        print("❌ TEST FAIL:", e)
+        print("❌ TEST FAIL:", repr(e))
+        print("FULL TRACE:\n", traceback.format_exc())
+
 quick_test()
+
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
     opts = {**YTDLP_BASE_OPTS, "extract_flat": True}
@@ -306,6 +316,7 @@ def search_artist_top10(artist_name):
 
 def download_instagram(url, timeout=60):
     opts = {
+        **YTDLP_BASE_OPTS,          # ✅ proxy + headers + cookies ham kiradi
         "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
         "format": "mp4",
         "quiet": True,
@@ -569,3 +580,4 @@ if __name__ == "__main__":
     bot.remove_webhook()
     time.sleep(1)
     bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
+    # quick_test()
