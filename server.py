@@ -249,19 +249,11 @@ YTDLP_BASE_OPTS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
     "extractor_args": {
-    "youtube": {
-        "player_skip": ["webpage"],   # ba'zan yordam beradi
-        "player_client": ["android_music", "android"]
-    }
+        "youtube": {
+            "player_client": ["android"]
+        }
     },
 }
-PROXY_URL = os.getenv("PROXY_URL", "").strip()
-
-if PROXY_URL:
-    YTDLP_BASE_OPTS["proxy"] = PROXY_URL
-    print("✅ yt-dlp proxy ulandi:", PROXY_URL.split("@")[-1])
-else:
-    print("ℹ️ PROXY_URL topilmadi (proxy o‘chiq)")
 
 def debug_cookies(path):
     try:
@@ -287,31 +279,15 @@ else:
 # ✅ 3) Bot start bo‘lganda 1 marta test
 def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
-
-    # A) proxy bilan
-    opts_a = {**YTDLP_BASE_OPTS, "skip_download": True}
-    print("\n=== TEST A (with proxy) ===")
-    print("proxy:", opts_a.get("proxy"))
     try:
-        with yt_dlp.YoutubeDL(opts_a) as ydl:
+        opts = {**YTDLP_BASE_OPTS, "skip_download": True}
+        print("cookiefile used:", opts.get("cookiefile"))
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(test_url, download=False)
-            print("OK A:", info.get("title"))
+            print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
-        print("FAIL A:", repr(e))
-
-    # B) proxysiz (proxy kalitini olib tashlaymiz)
-    opts_b = {**YTDLP_BASE_OPTS, "skip_download": True}
-    opts_b.pop("proxy", None)
-    print("\n=== TEST B (no proxy) ===")
-    print("proxy:", opts_b.get("proxy"))
-    try:
-        with yt_dlp.YoutubeDL(opts_b) as ydl:
-            info = ydl.extract_info(test_url, download=False)
-            print("OK B:", info.get("title"))
-    except Exception as e:
-        print("FAIL B:", repr(e))
+        print("❌ TEST FAIL:", e)
 quick_test()
-
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
     opts = {**YTDLP_BASE_OPTS, "extract_flat": True}
@@ -330,7 +306,6 @@ def search_artist_top10(artist_name):
 
 def download_instagram(url, timeout=60):
     opts = {
-        **YTDLP_BASE_OPTS,          # ✅ proxy + headers + cookies ham kiradi
         "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
         "format": "mp4",
         "quiet": True,
