@@ -252,7 +252,7 @@ YTDLP_BASE_OPTS = {
     "youtube": {
         "player_skip": ["webpage"],   # ba'zan yordam beradi
         "player_client": ["android_music", "android"]
-      }
+    }
     },
 }
 PROXY_URL = os.getenv("PROXY_URL", "").strip()
@@ -310,7 +310,7 @@ def quick_test():
             print("OK B:", info.get("title"))
     except Exception as e:
         print("FAIL B:", repr(e))
-
+quick_test()
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
