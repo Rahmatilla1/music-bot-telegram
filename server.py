@@ -258,7 +258,10 @@ PROXY_URL = os.getenv("PROXY_URL", "").strip()
 
 if PROXY_URL:
     YTDLP_BASE_OPTS["proxy"] = PROXY_URL
-    print("✅ yt-dlp proxy ulandi")
+    print("✅ yt-dlp proxy ulandi:", PROXY_URL.split("@")[-1])
+else:
+    print("ℹ️ PROXY_URL topilmadi (proxy o‘chiq)")
+
 def debug_cookies(path):
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
