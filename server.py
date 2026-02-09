@@ -15,6 +15,26 @@ import shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from telebot import apihelper
+from contextlib import contextmanager
+
+PROXY_ENV_KEYS = [
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+    "http_proxy", "https_proxy", "all_proxy",
+]
+
+@contextmanager
+def temp_unset_env(keys):
+    saved = {}
+    for k in keys:
+        if k in os.environ:
+            saved[k] = os.environ[k]
+            os.environ.pop(k, None)
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            os.environ[k] = v
+
 
 load_dotenv()
 
@@ -375,17 +395,20 @@ def download_instagram(url, timeout=60):
         "socket_timeout": timeout,
     }
 
-    # ✅ Instagram uchun proxy'ni o'chiramiz (ko'p proxylar IG'ni yiqitadi)
-    opts.pop("proxy", None)
+    # ✅ IG uchun proxy'ni butunlay o'chiramiz
+    opts["proxy"] = ""          # opts darajada proxy disable
+    opts.pop("source_address", None)
 
-    # ✅ Instagram uchun alohida cookies bo‘lsa — shuni ishlatamiz
+    # ✅ IG cookies bo‘lsa ishlatamiz
     if ig_cookie_path and os.path.exists(ig_cookie_path) and os.path.getsize(ig_cookie_path) > 100:
         opts["cookiefile"] = ig_cookie_path
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        return ydl.prepare_filename(info)
-
+    # ✅ ENG MUHIMI: IG so‘rov paytida ENV proxy'larni vaqtincha o‘chirib turamiz
+    with temp_unset_env(PROXY_ENV_KEYS):
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return ydl.prepare_filename(info)
+        
 def extract_audio(video_path):
     audio_path = video_path.replace(".mp4", ".mp3")
     result = subprocess.run(
