@@ -13,5 +13,6 @@ downloads/
 *.mp4
 *.webm
 
-# yt-dlp cookies
+# yt-dlp cookies (secrets)
 cookies.txt
+ig_cookies.txt

@@ -21,6 +21,10 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COOKIES_PATH = os.path.join(BASE_DIR, "cookies.txt")
 
+# ✅ Instagram cookies file
+IG_COOKIES_PATH = os.path.join(BASE_DIR, "ig_cookies.txt")
+
+
 def ensure_cookies_file():
     b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
     print("COOKIES ENV bor-mi:", bool(b64))
@@ -48,6 +52,36 @@ def ensure_cookies_file():
     except Exception as e:
         print("❌ cookies tiklash xato:", e)
         return None
+
+
+# ✅ Instagram cookies restore
+def ensure_ig_cookies_file():
+    b64 = os.getenv("IG_COOKIES_B64", "").strip()
+    print("IG_COOKIES ENV bor-mi:", bool(b64))
+
+    if not b64:
+        print("⚠️ IG_COOKIES_B64 yo‘q (Instagram linklar login so‘rashi mumkin)")
+        return None
+
+    try:
+        data = base64.b64decode(b64)
+        with open(IG_COOKIES_PATH, "wb") as f:
+            f.write(data)
+
+        size = os.path.getsize(IG_COOKIES_PATH)
+        print("✅ ig_cookies.txt tiklandi. size =", size, "bytes")
+
+        # Netscape format tekshiruv
+        with open(IG_COOKIES_PATH, "r", encoding="utf-8", errors="ignore") as f:
+            first = f.readline()
+        if "Netscape" not in first:
+            print("⚠️ ig_cookies.txt Netscape format emasga o‘xshaydi (IG cookies exportni qayta qil)")
+
+        return IG_COOKIES_PATH
+    except Exception as e:
+        print("❌ IG cookies tiklash xato:", e)
+        return None
+
 
 # ================== SOZLAMALAR ==================
 TOKEN = os.getenv("TOKEN")
@@ -265,10 +299,10 @@ def debug_cookies(path):
     except Exception as e:
         print("debug_cookies error:", e)
 
-# ✅ 1) cookiesni 1 marta tiklaymiz
+# ✅ 1) YouTube cookiesni tiklaymiz
 cookie_path = ensure_cookies_file()
 
-# ✅ 2) cookiefile ni 1 marta ulaymiz
+# ✅ 2) YouTube cookiefile ni ulaymiz
 if cookie_path and os.path.exists(cookie_path) and os.path.getsize(cookie_path) > 100:
     YTDLP_BASE_OPTS["cookiefile"] = cookie_path
     print("✅ yt-dlp cookiefile ulandi:", cookie_path)
@@ -276,7 +310,10 @@ if cookie_path and os.path.exists(cookie_path) and os.path.getsize(cookie_path) 
 else:
     print("❌ cookiefile ulanmagan yoki juda kichik:", cookie_path)
 
-# ✅ 3) Bot start bo‘lganda 1 marta test
+# ✅ 3) Instagram cookiesni tiklaymiz (alohida)
+ig_cookie_path = ensure_ig_cookies_file()
+
+# ✅ 4) Bot start bo‘lganda 1 marta test
 def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
     try:
@@ -287,7 +324,9 @@ def quick_test():
             print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
         print("❌ TEST FAIL:", e)
+
 quick_test()
+
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
     opts = {**YTDLP_BASE_OPTS, "extract_flat": True}
@@ -304,17 +343,26 @@ def search_artist_top10(artist_name):
             })
         return results
 
+
+# ✅ Instagram download: cookiefile + base opts bilan
 def download_instagram(url, timeout=60):
     opts = {
+        **YTDLP_BASE_OPTS,
         "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
         "format": "mp4",
         "quiet": True,
         "noplaylist": True,
         "socket_timeout": timeout
     }
+
+    # Instagram uchun alohida cookies bo‘lsa — shuni ishlatamiz
+    if ig_cookie_path and os.path.exists(ig_cookie_path) and os.path.getsize(ig_cookie_path) > 100:
+        opts["cookiefile"] = ig_cookie_path
+
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
         return ydl.prepare_filename(info)
+
 
 def extract_audio(video_path):
     audio_path = video_path.replace(".mp4", ".mp3")
@@ -540,11 +588,8 @@ def set_bot_commands():
 set_bot_commands()
 
 # ================== HEALTH SERVER (RENDER) ==================
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Render loglarini spam qilmaslik uchun
         return
 
     def do_GET(self):
