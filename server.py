@@ -231,28 +231,49 @@ def get_monthly_stats():
     conn.close()
     return today_users, month_users, today_requests, month_requests
 
+def get_channel_members_count(channel_username):
+    try:
+        chat = bot.get_chat(channel_username)
+        return chat.members_count
+    except Exception as e:
+        print(f"❌ Kanal a'zolarini olishda xato ({channel_username}):", e)
+        return None
+
+
 def update_bot_description():
     try:
         today_users, month_users, today_requests, month_requests = get_monthly_stats()
-        month_str = f"{int(month_users):,}"
-        today_str = f"{int(today_users):,}"
-        req_str = f"{int(today_requests):,}"
 
-        short_desc = f"🎵 Musiqa | Oyda {month_str} foydalanuvchi"
+        # 📢 Kanal obunachilari
+        channel = CHANNELS[0]  # "@efoouz"
+        subs = get_channel_members_count(channel)
+        subs_str = f"{subs:,}" if subs else "—"
+
+        short_desc = f"🎵 Musiqa Bot | {subs_str} obunachi"
+
         description = f"""🎵 Musiqa Bot
 
-Bugun: {today_str} foydalanuvchi, {req_str} so'rov
-Oyda: {month_str} foydalanuvchi
+📢 Kanal: {channel}
+👥 Obunachilar: {subs_str}
 
-Qo'shiqchi nomi yozing → Top 10"""
+📅 Bugun:
+👤 Foydalanuvchilar: {today_users}
+🎧 So'rovlar: {today_requests}
+
+📈 Oyda (30 kun):
+👥 Foydalanuvchilar: {month_users:,}
+🎵 So'rovlar: {month_requests:,}
+
+🎶 Qo'shiqchi nomini yozing → Top 10
+📱 Instagram / YouTube link yuboring"""
 
         bot.set_my_short_description(short_desc)
         bot.set_my_description(description)
-        print(f"✅ OK: Oyda {month_str}")
+
+        print(f"✅ Description yangilandi | Subs: {subs_str}")
 
     except Exception as e:
-        print(f"❌ ERROR: {e}")
-        bot.set_my_short_description("🎵 Musiqa Bot | Statistika yuklanmoqda...")
+        print(f"❌ Description update xato:", e)
 
 def auto_update_stats():
     while True:
