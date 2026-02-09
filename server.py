@@ -462,14 +462,21 @@ def download_mp3_from_url(yt_url, title):
             ydl.download([yt_url])
 
     except Exception as e:
-        # ✅ proxy muammo bo‘lsa — proxysiz qayta urin
-        if "Socks" in str(e) or "timed out" in str(e) or "Read timed out" in str(e):
-            print("⚠️ Proxy sekin. Proxysiz qayta urinayapman...")
+        if "Socks" in str(e) or "timed out" in str(e):
+            print("⚠️ Proxy muammo. Proxysiz qayta urinayapman...")
             opts.pop("proxy", None)
             with yt_dlp.YoutubeDL(opts) as ydl:
                 ydl.download([yt_url])
         else:
             raise
+
+    # ✅ ENG MUHIM QISM
+    mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
+    if not mp3_files:
+        raise Exception("MP3 topilmadi")
+
+    mp3_path = max(mp3_files, key=os.path.getctime)
+    return mp3_path, yt_url, title
 
 # ================== CALLBACKS ==================
 @bot.callback_query_handler(func=lambda c: c.data == "check_sub")
