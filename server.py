@@ -341,16 +341,12 @@ def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
     try:
         opts = {**YTDLP_BASE_OPTS, "skip_download": True}
-        print("proxy used:", opts.get("proxy"))
-        print("cookiefile used:", opts.get("cookiefile"))
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(test_url, download=False)
             print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
         print("❌ TEST FAIL:", repr(e))
-        print("FULL TRACE:\n", traceback.format_exc())
 
-quick_test()
 
 # ================== MUSIC FUNCTIONS ==================
 def search_artist_top10(artist_name):
@@ -401,7 +397,10 @@ def extract_audio(video_path):
 def download_mp3_from_url(yt_url, title):
     opts = {
         **YTDLP_BASE_OPTS,
-        "format": "140/139/251/bestaudio",
+
+        # ✅ fallback format: eng yaxshi audio bo‘lsa oladi, bo‘lmasa boshqa audio
+        "format": "bestaudio/best",
+
         "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
