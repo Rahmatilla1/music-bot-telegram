@@ -339,6 +339,10 @@ YTDLP_BASE_OPTS = {
     "sleep_interval": 2,
     "max_sleep_interval": 5,
     "concurrent_fragment_downloads": 1,
+    "retries": 10,
+    "fragment_retries": 10,
+    "extractor_retries": 10,
+    "socket_timeout": 90,
     "http_headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     },
