@@ -14,17 +14,33 @@ import traceback
 import shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
-from telebot import types, apihelper
+from telebot import apihelper
 
 load_dotenv()
 
+# ================== SINGLE INSTANCE LOCK (409 fix) ==================
+LOCK_FILE = "/tmp/telegram_bot.lock"
+
+def acquire_lock():
+    try:
+        fd = os.open(LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+        print("✅ Lock acquired:", LOCK_FILE)
+    except FileExistsError:
+        print("⛔ Bot already running (lock exists). Exiting...")
+        raise SystemExit(0)
+
+acquire_lock()
+
+# ================== PATHS ==================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COOKIES_PATH = os.path.join(BASE_DIR, "cookies.txt")
 
 # ✅ Instagram cookies file
 IG_COOKIES_PATH = os.path.join(BASE_DIR, "ig_cookies.txt")
 
-
+# ================== COOKIES RESTORE ==================
 def ensure_cookies_file():
     b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
     print("COOKIES ENV bor-mi:", bool(b64))
@@ -41,20 +57,17 @@ def ensure_cookies_file():
         size = os.path.getsize(COOKIES_PATH)
         print("✅ cookies.txt tiklandi. size =", size, "bytes")
 
-        # Netscape format tekshiruv
         with open(COOKIES_PATH, "r", encoding="utf-8", errors="ignore") as f:
             first = f.readline()
         if "Netscape" not in first:
             print("⚠️ cookies.txt Netscape format emasga o‘xshaydi (cookies exportni qayta qil)")
 
         return COOKIES_PATH
-
     except Exception as e:
         print("❌ cookies tiklash xato:", e)
         return None
 
 
-# ✅ Instagram cookies restore
 def ensure_ig_cookies_file():
     b64 = os.getenv("IG_COOKIES_B64", "").strip()
     print("IG_COOKIES ENV bor-mi:", bool(b64))
@@ -71,7 +84,6 @@ def ensure_ig_cookies_file():
         size = os.path.getsize(IG_COOKIES_PATH)
         print("✅ ig_cookies.txt tiklandi. size =", size, "bytes")
 
-        # Netscape format tekshiruv
         with open(IG_COOKIES_PATH, "r", encoding="utf-8", errors="ignore") as f:
             first = f.readline()
         if "Netscape" not in first:
@@ -81,7 +93,6 @@ def ensure_ig_cookies_file():
     except Exception as e:
         print("❌ IG cookies tiklash xato:", e)
         return None
-
 
 # ================== SOZLAMALAR ==================
 TOKEN = os.getenv("TOKEN")
@@ -266,7 +277,15 @@ def save_music(user_id, query, url):
     conn.commit()
     conn.close()
 
-# ================== YT-DLP OPTS (COOKIES) ==================
+# ================== PROXY (YT-DLP) ==================
+# ENV: PROXY_URL=socks5h://IP:PORT  (socks5h tavsiya)
+PROXY_URL = os.getenv("PROXY_URL", "").strip()
+if PROXY_URL:
+    print("✅ Proxy yoqildi:", PROXY_URL.split("@")[-1])
+else:
+    print("ℹ️ Proxy o‘chiq (PROXY_URL yo‘q)")
+
+# ================== YT-DLP OPTS (BASE) ==================
 YTDLP_BASE_OPTS = {
     "quiet": False,
     "verbose": True,
@@ -288,6 +307,10 @@ YTDLP_BASE_OPTS = {
         }
     },
 }
+
+# ✅ proxy’ni base opts’ga ulaymiz
+if PROXY_URL:
+    YTDLP_BASE_OPTS["proxy"] = PROXY_URL
 
 def debug_cookies(path):
     try:
@@ -318,12 +341,14 @@ def quick_test():
     test_url = "https://www.youtube.com/watch?v=KFWhRKh-bZo"
     try:
         opts = {**YTDLP_BASE_OPTS, "skip_download": True}
+        print("proxy used:", opts.get("proxy"))
         print("cookiefile used:", opts.get("cookiefile"))
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(test_url, download=False)
             print("✅ TEST OK title:", info.get("title"))
     except Exception as e:
-        print("❌ TEST FAIL:", e)
+        print("❌ TEST FAIL:", repr(e))
+        print("FULL TRACE:\n", traceback.format_exc())
 
 quick_test()
 
@@ -343,8 +368,7 @@ def search_artist_top10(artist_name):
             })
         return results
 
-
-# ✅ Instagram download: cookiefile + base opts bilan
+# ✅ Instagram download: base opts + IG cookies (bo‘lsa)
 def download_instagram(url, timeout=60):
     opts = {
         **YTDLP_BASE_OPTS,
@@ -362,7 +386,6 @@ def download_instagram(url, timeout=60):
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
         return ydl.prepare_filename(info)
-
 
 def extract_audio(video_path):
     audio_path = video_path.replace(".mp4", ".mp3")
@@ -439,29 +462,6 @@ def song_callback(call):
             pass
         clear_downloads()
 
-@bot.callback_query_handler(func=lambda c: c.data == "clear_music_db")
-def clear_music_db():
-    conn, c = get_db()
-    c.execute("SELECT COUNT(*) FROM music_requests")
-    before = c.fetchone()[0]
-
-    c.execute("DELETE FROM music_requests")
-    conn.commit()
-
-    c.execute("VACUUM")
-    conn.commit()
-    conn.close()
-
-    return int(before)
-
-def clear_music_callback(call):
-    if not is_admin(call.from_user.id):
-        bot.answer_callback_query(call.id, "⛔ Siz admin emassiz!", show_alert=True)
-        return
-
-    deleted_count = clear_music_db()
-    bot.answer_callback_query(call.id, f"✅ Music DB tozalandi!\n🗑️ {deleted_count} ta yozuv o'chirildi", show_alert=True)
-
 # ================== COMMANDS ==================
 @bot.message_handler(commands=["start"])
 def start(m):
@@ -492,9 +492,6 @@ def stats(m):
     total_requests_db = c.fetchone()[0]
     conn.close()
 
-    kb = types.InlineKeyboardMarkup(row_width=1)
-    kb.add(types.InlineKeyboardButton("🗑️ Clear Music DB", callback_data="clear_music_db"))
-
     bot.send_message(m.chat.id, f"""📊 STATISTIKA
 
 👥 JAMI Foydalanuvchilar: {total_users}
@@ -506,7 +503,7 @@ def stats(m):
 
 📈 OYDA (30 kun):
 👥 Foydalanuvchilar: {month_users:,}
-🎵 So'rovlar: {month_requests:,}""", reply_markup=kb)
+🎵 So'rovlar: {month_requests:,}""")
 
 # ================== MAIN HANDLER ==================
 @bot.message_handler(func=lambda m: m.text and not m.text.startswith("/"))
@@ -578,15 +575,6 @@ def handle(m):
         except:
             pass
 
-# ================== BOT COMMANDS ==================
-def set_bot_commands():
-    bot.set_my_commands([
-        types.BotCommand("start", "🎵 Boshlash"),
-        types.BotCommand("stats", "📊 Statistika (admin)")
-    ])
-
-set_bot_commands()
-
 # ================== HEALTH SERVER (RENDER) ==================
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -611,6 +599,11 @@ threading.Thread(target=run_server, daemon=True).start()
 if __name__ == "__main__":
     update_bot_description()
     print("🚀 Bot ishga tushdi - Stats FAOL!")
+
+    # webhookni “hard reset” (409 uchun ham foydali)
     bot.remove_webhook()
-    time.sleep(1)
-    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
+    time.sleep(2)
+    bot.remove_webhook()
+    time.sleep(2)
+
+    bot.infinity_polling(skip_pending=True, none_stop=True, timeout=60, long_polling_timeout=60)
