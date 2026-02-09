@@ -369,13 +369,16 @@ def download_instagram(url, timeout=60):
     opts = {
         **YTDLP_BASE_OPTS,
         "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
-        "format": "mp4",
+        "format": "mp4/best",
         "quiet": True,
         "noplaylist": True,
-        "socket_timeout": timeout
+        "socket_timeout": timeout,
     }
 
-    # Instagram uchun alohida cookies bo‘lsa — shuni ishlatamiz
+    # ✅ Instagram uchun proxy'ni o'chiramiz (ko'p proxylar IG'ni yiqitadi)
+    opts.pop("proxy", None)
+
+    # ✅ Instagram uchun alohida cookies bo‘lsa — shuni ishlatamiz
     if ig_cookie_path and os.path.exists(ig_cookie_path) and os.path.getsize(ig_cookie_path) > 100:
         opts["cookiefile"] = ig_cookie_path
 
