@@ -444,10 +444,7 @@ def extract_audio(video_path):
 def download_mp3_from_url(yt_url, title):
     opts = {
         **YTDLP_BASE_OPTS,
-
-        # ✅ fallback format: eng yaxshi audio bo‘lsa oladi, bo‘lmasa boshqa audio
         "format": "bestaudio/best",
-
         "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
@@ -456,15 +453,19 @@ def download_mp3_from_url(yt_url, title):
         }],
     }
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.download([yt_url])
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            ydl.download([yt_url])
 
-    mp3_files = glob.glob(f"{DOWNLOAD_DIR}/*.mp3")
-    if not mp3_files:
-        raise Exception("MP3 topilmadi (YouTube format bermadi)")
-
-    mp3 = max(mp3_files, key=os.path.getctime)
-    return mp3, yt_url, title
+    except Exception as e:
+        # ✅ proxy muammo bo‘lsa — proxysiz qayta urin
+        if "Socks" in str(e) or "timed out" in str(e) or "Read timed out" in str(e):
+            print("⚠️ Proxy sekin. Proxysiz qayta urinayapman...")
+            opts.pop("proxy", None)
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([yt_url])
+        else:
+            raise
 
 # ================== CALLBACKS ==================
 @bot.callback_query_handler(func=lambda c: c.data == "check_sub")
