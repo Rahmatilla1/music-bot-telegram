@@ -413,7 +413,7 @@ def search_artist_top10(artist_name):
 def download_instagram(url, timeout=60):
     opts = {
         **YTDLP_BASE_OPTS,
-        "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
+        "outtmpl": f"{DOWNLOAD_DIR}/%(id)s_%(title).50s.%(ext)s",
         "format": "mp4/best",
         "quiet": True,
         "noplaylist": True,
@@ -449,7 +449,7 @@ def download_mp3_from_url(yt_url, title):
     opts = {
         **YTDLP_BASE_OPTS,
         "format": "bestaudio/best",
-        "outtmpl": f"{DOWNLOAD_DIR}/%(title).200s.%(ext)s",
+        "outtmpl": f"{DOWNLOAD_DIR}/%(id)s_%(title).50s.%(ext)s",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
